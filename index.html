@@ -1,0 +1,210 @@
+<!--
+    Esta é a versão aprimorada do seu assistente de IA.
+    Ela carrega o conhecimento de um arquivo de texto externo chamado `livros.txt`.
+    
+    Lembre-se de inserir sua chave de API e garantir que o arquivo `livros.txt`
+    esteja na mesma pasta que este arquivo `index.html`.
+-->
+<div class="w-full max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+    <div class="flex flex-col items-center justify-center min-h-screen p-4 md:p-6 lg:flex-row lg:space-x-8">
+
+        <!-- Contêiner do Chat -->
+        <div class="bg-white shadow-xl rounded-2xl w-full max-w-2xl flex flex-col p-6 lg:w-full" style="height: 85vh;">
+            <!-- Título do Chat -->
+            <div class="border-b pb-4 mb-4">
+                <h1 class="text-3xl font-bold text-gray-800 text-center">Assistente de IA</h1>
+            </div>
+            
+            <!-- Contêiner de Mensagens -->
+            <div id="chat-messages" class="flex-grow flex flex-col space-y-4 p-4 bg-gray-50 rounded-lg shadow-inner" style="overflow-y: auto;">
+                <!-- Mensagem de boas-vindas inicial -->
+                <div class="flex justify-start">
+                    <div id="welcome-message" class="bg-blue-100 text-gray-800 p-3 rounded-lg max-w-[80%] shadow-md">
+                        Carregando conhecimento...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Carregando/Indicador de Digitação -->
+            <div id="loading-indicator" class="flex justify-start items-center space-x-2 mt-4 hidden">
+                <div class="w-4 h-4 rounded-full bg-gray-400 animate-pulse"></div>
+                <div class="w-4 h-4 rounded-full bg-gray-400 animate-pulse delay-150"></div>
+                <div class="w-4 h-4 rounded-full bg-gray-400 animate-pulse delay-300"></div>
+            </div>
+            
+            <!-- Formulário de Entrada do Usuário -->
+            <div class="mt-4 flex items-center space-x-2">
+                <input type="text" id="user-input" placeholder="Digite sua mensagem..." class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                <button id="send-button" class="bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                    Enviar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f3f4f6;
+    }
+    /* Estilos do Scrollbar */
+    #chat-messages::-webkit-scrollbar {
+        width: 8px;
+    }
+    #chat-messages::-webkit-scrollbar-track {
+        background: #f3f4f6;
+    }
+    #chat-messages::-webkit-scrollbar-thumb {
+        background-color: #ccc;
+        border-radius: 4px;
+    }
+</style>
+<script>
+    // ** IMPORTANTE: INSIRA SUA CHAVE DE API AQUI **
+    const apiKey = "AIzaSyCIVxueaY-lw6Rd0mpv7xk0zMPC-f8NWJM"; 
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+    // A variável que vai armazenar o conhecimento da IA
+    let knowledgeBaseContent = "";
+
+    // Elementos da interface do usuário
+    const chatMessages = document.getElementById('chat-messages');
+    const welcomeMessage = document.getElementById('welcome-message');
+    const userInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
+    const loadingIndicator = document.getElementById('loading-indicator');
+
+    // Histórico de conversa
+    let chatHistory = [];
+
+    // Adiciona uma mensagem ao chat
+    function addMessage(text, sender) {
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('flex', 'justify-end');
+        if (sender === 'assistant') {
+            messageDiv.classList.remove('justify-end');
+            messageDiv.classList.add('justify-start');
+        }
+
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.classList.add('p-3', 'rounded-lg', 'max-w-[80%]', 'shadow-md');
+        bubbleDiv.textContent = text;
+
+        if (sender === 'user') {
+            bubbleDiv.classList.add('bg-blue-600', 'text-white');
+        } else {
+            bubbleDiv.classList.add('bg-gray-200', 'text-gray-800');
+        }
+
+        messageDiv.appendChild(bubbleDiv);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Mostra ou oculta o indicador de carregamento
+    function showLoading(show) {
+        loadingIndicator.classList.toggle('hidden', !show);
+        sendButton.disabled = show;
+        userInput.disabled = show;
+    }
+    
+    // Função para carregar a base de conhecimento de um arquivo de texto
+    async function loadKnowledgeBase() {
+        showLoading(true);
+        try {
+            const response = await fetch('livros.txt');
+            if (!response.ok) {
+                throw new Error(`Erro ao carregar o arquivo: ${response.statusText}`);
+            }
+            knowledgeBaseContent = await response.text();
+            welcomeMessage.textContent = "Olá! Eu sou seu assistente de IA. Meu conhecimento sobre saúde bucal já está integrado, pode começar a fazer suas perguntas.";
+        } catch (error) {
+            console.error("Falha ao carregar a base de conhecimento:", error);
+            welcomeMessage.textContent = "Erro ao carregar o conhecimento. Por favor, verifique se o arquivo 'livros.txt' existe.";
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Função para chamar a API e obter a resposta do IA
+    async function getGeminiResponse(prompt) {
+        if (apiKey === "AIzaSyCIVxueaY-lw6Rd0mpv7xk0zMPC-f8NWJM") {
+            addMessage("Por favor, insira sua chave de API no código JavaScript para que o assistente funcione.", 'assistant');
+            return;
+        }
+
+        if (knowledgeBaseContent === "") {
+            addMessage("A base de conhecimento ainda não foi carregada ou está vazia.", 'assistant');
+            return;
+        }
+        
+        const fullPrompt = `Aqui está um texto de referência sobre saúde bucal:\n---\n${knowledgeBaseContent}\n---\nCom base neste texto, responda a seguinte pergunta: ${prompt}`;
+
+        chatHistory.push({ role: "user", parts: [{ text: fullPrompt }] });
+        
+        const payload = { contents: chatHistory };
+
+        try {
+            showLoading(true);
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Erro da API: ${response.statusText} - ${JSON.stringify(errorData)}`);
+            }
+
+            const result = await response.json();
+            
+            let assistantText = "Desculpe, não consegui obter uma resposta.";
+            if (result.candidates && result.candidates.length > 0 &&
+                result.candidates[0].content && result.candidates[0].content.parts &&
+                result.candidates[0].content.parts.length > 0) {
+                assistantText = result.candidates[0].content.parts[0].text;
+            } else {
+                console.error("Estrutura da resposta da API inesperada ou conteúdo ausente.");
+            }
+
+            chatHistory.push({ role: "model", parts: [{ text: assistantText }] });
+
+            return assistantText;
+
+        } catch (error) {
+                console.error("Falha ao se comunicar com a API:", error);
+                addMessage("Ocorreu um erro ao processar sua solicitação. Por favor, verifique a chave da API e tente novamente.", 'assistant');
+                return null;
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Envia a mensagem do usuário
+    async function sendMessage() {
+        const prompt = userInput.value.trim();
+        if (prompt === '') return;
+
+        addMessage(prompt, 'user');
+        userInput.value = '';
+
+        const assistantResponse = await getGeminiResponse(prompt);
+        if (assistantResponse) {
+            addMessage(assistantResponse, 'assistant');
+        }
+    }
+
+    // Event listeners para o botão e a tecla Enter
+    sendButton.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // Chama a função para carregar a base de conhecimento quando a página é carregada
+    window.addEventListener('load', loadKnowledgeBase);
+</script>
